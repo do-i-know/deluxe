@@ -60,6 +60,8 @@ export const SongCard: React.FC<{
         <img
           src={song.cover_url || 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=600&auto=format&fit=crop&q=80'}
           alt={song.title}
+          loading="lazy"
+          decoding="async"
           className="relative z-10 w-full h-full object-cover rounded-xl transition-transform duration-500 group-hover:scale-105"
         />
 

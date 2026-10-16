@@ -28,10 +28,13 @@ export const HeroBanner: React.FC<{
       {/* Dynamic Spotify-Style Soft Ambient Vignette */}
       <div className="absolute inset-0 bg-gradient-to-b from-transparent via-black/20 to-black/80 pointer-events-none" />
 
-      {/* Dynamic Ambient Glowing Orb */}
+      {/* Dynamic Ambient Glowing Orb (Pure GPU Radial Gradient without heavy 140px software blur) */}
       <div
-        className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[480px] h-[480px] rounded-full blur-[140px] pointer-events-none opacity-50 transition-all duration-1000"
-        style={{ background: theme.primary }}
+        className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[480px] h-[480px] rounded-full pointer-events-none opacity-60 transition-all duration-1000 will-change-transform"
+        style={{
+          background: `radial-gradient(circle, ${theme.primary} 0%, transparent 70%)`,
+          transform: 'translate3d(-50%, 0, 0)',
+        }}
       />
 
       <div className="relative z-10 flex flex-col items-center text-center">
@@ -114,6 +117,7 @@ export const HeroBanner: React.FC<{
               <img
                 src={currentTrack?.cover_url || 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=600&auto=format&fit=crop&q=80'}
                 alt={currentTrack?.title || 'Running song artwork'}
+                decoding="async"
                 className="w-full h-full object-cover"
               />
               {/* Play Overlay Button */}

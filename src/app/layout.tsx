@@ -3,6 +3,7 @@ import { Space_Grotesk, Cinzel } from 'next/font/google';
 import './globals.css';
 import { AuthProvider } from '@/context/AuthContext';
 import { AudioPlayerProvider } from '@/context/AudioPlayerContext';
+import { SmoothScrollProvider } from '@/components/providers/SmoothScrollProvider';
 
 const spaceGrotesk = Space_Grotesk({
   variable: '--font-space-grotesk',
@@ -42,7 +43,9 @@ export default function RootLayout({
     <html lang="en" className={`${spaceGrotesk.variable} ${cinzel.variable} dark`}>
       <body className="min-h-screen bg-[#120806] text-white font-sans antialiased selection:bg-amber-500/30">
         <AuthProvider>
-          <AudioPlayerProvider>{children}</AudioPlayerProvider>
+          <AudioPlayerProvider>
+            <SmoothScrollProvider>{children}</SmoothScrollProvider>
+          </AudioPlayerProvider>
         </AuthProvider>
       </body>
     </html>

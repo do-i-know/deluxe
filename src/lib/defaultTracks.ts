@@ -120,7 +120,16 @@ export function getSongTheme(song: Song | null): SongColorTheme {
 
   const g = (song.genre + ' ' + song.title + ' ' + song.artist).toLowerCase();
 
-  if (g.includes('r&b') || g.includes('dark') || g.includes('sob') || g.includes('limi')) {
+  if (g.includes('pink') || g.includes('doja') || g.includes('streets') || g.includes('magenta')) {
+    return {
+      primary: 'rgba(236, 72, 153, 0.55)',
+      secondary: 'rgba(219, 39, 119, 0.35)',
+      darkBg: '#180710',
+      accentHex: '#f43f5e',
+    };
+  }
+
+  if (g.includes('sob') || g.includes('limi') || g.includes('midnight') || g.includes('blues')) {
     return {
       primary: 'rgba(79, 70, 229, 0.5)',
       secondary: 'rgba(59, 130, 246, 0.3)',

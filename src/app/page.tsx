@@ -92,15 +92,18 @@ export default function HomePage() {
   }, [songs]);
 
   return (
-    <div
-      className="relative min-h-screen text-white selection:bg-amber-500/30 pb-32 overflow-x-hidden transition-colors duration-1000"
-      style={{
-        backgroundColor: theme.darkBg,
-        backgroundImage: `radial-gradient(ellipse 90% 60% at 50% -10%, ${theme.primary} 0%, transparent 75%)`,
-      }}
-    >
+    <div className="relative min-h-screen text-white selection:bg-amber-500/30 pb-32 overflow-x-hidden">
+      {/* GPU Hardware-Accelerated Dynamic Theme Background Layer (Zero repaint on scroll) */}
+      <div
+        className="fixed inset-0 pointer-events-none -z-10 transition-colors duration-1000 gpu-layer"
+        style={{
+          backgroundColor: theme.darkBg,
+          backgroundImage: `radial-gradient(ellipse 90% 60% at 50% -10%, ${theme.primary} 0%, transparent 75%)`,
+        }}
+      />
+
       {/* Aceternity Ambient Glow Beams */}
-      <AmbientBeams />
+      <AmbientBeams accentColor={theme.primary} />
 
       {/* Navigation Header */}
       <HeaderNav onOpenChat={() => setIsChatOpen(true)} />
@@ -133,8 +136,8 @@ export default function HomePage() {
           </section>
         )}
 
-        {/* Library Section */}
-        <section>
+        {/* Library Section with Content Visibility Optimization */}
+        <section className="content-visibility-auto">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <Disc className="w-5 h-5 text-amber-400" />

@@ -88,6 +88,8 @@ export const TrackList: React.FC<{
                 <img
                   src={track.cover_url || 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=200&auto=format&fit=crop&q=80'}
                   alt={track.title}
+                  loading="lazy"
+                  decoding="async"
                   className="w-10 h-10 rounded-lg object-cover flex-shrink-0"
                 />
                 <div className="min-w-0">

@@ -44,13 +44,21 @@ function rgbToHsl(r: number, g: number, b: number): [number, number, number] {
 }
 
 /**
- * Intelligent genre / keyword fallback when canvas cannot extract pixels
+ * Intelligent keyword & genre fallback when extraction cannot occur
  */
 function getFallbackTheme(genre = '', text = ''): SongColorTheme {
   const g = (genre + ' ' + text).toLowerCase();
 
-  if (g.includes('r&b') || g.includes('dark') || g.includes('sob') || g.includes('limi')) {
-    // Deep midnight slate / indigo velvet (Matches moody R&B like 'sob')
+  if (g.includes('pink') || g.includes('doja') || g.includes('streets') || g.includes('magenta')) {
+    return {
+      primary: 'rgba(236, 72, 153, 0.55)',
+      secondary: 'rgba(219, 39, 119, 0.35)',
+      darkBg: '#180710',
+      accentHex: '#f43f5e',
+    };
+  }
+
+  if (g.includes('sob') || g.includes('limi') || g.includes('midnight') || g.includes('blues')) {
     return {
       primary: 'rgba(79, 70, 229, 0.5)',
       secondary: 'rgba(59, 130, 246, 0.3)',
@@ -110,7 +118,108 @@ function getFallbackTheme(genre = '', text = ''): SongColorTheme {
 }
 
 /**
- * Extracts the real dominant and vibrant colors directly from any cover image in the browser!
+ * Extracts dominant vibrant color directly from canvas pixels
+ */
+function extractFromCanvas(img: HTMLImageElement): SongColorTheme | null {
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  if (!ctx) return null;
+
+  const sampleSize = 48;
+  canvas.width = sampleSize;
+  canvas.height = sampleSize;
+  ctx.drawImage(img, 0, 0, sampleSize, sampleSize);
+
+  const imgData = ctx.getImageData(0, 0, sampleSize, sampleSize).data;
+  let bestH = 0;
+  let bestS = 0;
+  let bestL = 0;
+  let maxScore = -1;
+
+  const hueCounts = new Array(36).fill(0);
+  const hueSats = new Array(36).fill(0);
+  const hueLights = new Array(36).fill(0);
+
+  for (let i = 0; i < imgData.length; i += 16) {
+    const r = imgData[i];
+    const g = imgData[i + 1];
+    const b = imgData[i + 2];
+    const a = imgData[i + 3];
+
+    if (a < 128) continue;
+
+    const [h, s, l] = rgbToHsl(r, g, b);
+
+    // Filter out pure neutral grays, pure blacks, and harsh blown whites
+    if (s > 15 && l > 12 && l < 88) {
+      const bucket = Math.floor(h / 10) % 36;
+      hueCounts[bucket]++;
+      hueSats[bucket] += s;
+      hueLights[bucket] += l;
+
+      // Score vibrant colorful pixels (Spotify accent logic)
+      const vibrancyScore = s * 1.5 + (50 - Math.abs(50 - l));
+      if (vibrancyScore > maxScore) {
+        maxScore = vibrancyScore;
+        bestH = h;
+        bestS = s;
+        bestL = l;
+      }
+    }
+  }
+
+  if (maxScore < 0) {
+    let maxBucket = 0;
+    let maxBucketCount = 0;
+    for (let b = 0; b < 36; b++) {
+      if (hueCounts[b] > maxBucketCount) {
+        maxBucketCount = hueCounts[b];
+        maxBucket = b;
+      }
+    }
+    if (maxBucketCount > 0) {
+      bestH = maxBucket * 10 + 5;
+      bestS = Math.round(hueSats[maxBucket] / maxBucketCount);
+      bestL = Math.round(hueLights[maxBucket] / maxBucketCount);
+    } else {
+      return null;
+    }
+  }
+
+  const finalS = Math.max(50, Math.min(95, bestS));
+  const finalH = bestH;
+
+  return {
+    primary: `hsla(${finalH}, ${finalS}%, 50%, 0.5)`,
+    secondary: `hsla(${(finalH + 30) % 360}, ${Math.max(40, finalS - 15)}%, 35%, 0.3)`,
+    darkBg: `hsl(${finalH}, ${Math.min(50, Math.max(25, finalS))}%, 6%)`,
+    accentHex: `hsl(${finalH}, ${finalS}%, 60%)`,
+  };
+}
+
+/**
+ * Fallback to server-side sharp color extraction
+ */
+async function extractViaServerApi(coverUrl: string): Promise<SongColorTheme | null> {
+  try {
+    const res = await fetch(`/api/extract-color?url=${encodeURIComponent(coverUrl)}`);
+    const data = await res.json();
+    if (data?.success && data?.theme) {
+      return data.theme;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Extracts the real dominant and vibrant colors directly from any cover image!
+ * Uses a robust multi-tier pipeline:
+ * 1. Cache hit
+ * 2. In-browser Canvas 2D pixel extraction (fastest)
+ * 3. Server-side Sharp API route (bypasses browser CORS & format limitations)
+ * 4. Deterministic HSL fallback
  */
 export async function extractThemeFromCover(
   coverUrl?: string,
@@ -130,118 +239,60 @@ export async function extractThemeFromCover(
   }
 
   return new Promise((resolve) => {
+    let isResolved = false;
+
+    const finalize = (theme: SongColorTheme) => {
+      if (isResolved) return;
+      isResolved = true;
+      colorCache.set(coverUrl, theme);
+      resolve(theme);
+    };
+
+    // Timeout safety net (falls back to server API then local fallback)
+    const timer = setTimeout(async () => {
+      const serverTheme = await extractViaServerApi(coverUrl);
+      finalize(serverTheme || fallback);
+    }, 1200);
+
     try {
       const img = new Image();
       img.crossOrigin = 'anonymous';
 
-      const timer = setTimeout(() => {
-        colorCache.set(coverUrl, fallback);
-        resolve(fallback);
-      }, 1500);
-
-      img.onload = () => {
+      const handleImageReady = async () => {
         clearTimeout(timer);
         try {
-          const canvas = document.createElement('canvas');
-          const ctx = canvas.getContext('2d', { willReadFrequently: true });
-          if (!ctx) {
-            colorCache.set(coverUrl, fallback);
-            return resolve(fallback);
+          const theme = extractFromCanvas(img);
+          if (theme) {
+            finalize(theme);
+            return;
           }
-
-          const sampleSize = 48;
-          canvas.width = sampleSize;
-          canvas.height = sampleSize;
-          ctx.drawImage(img, 0, 0, sampleSize, sampleSize);
-
-          const imgData = ctx.getImageData(0, 0, sampleSize, sampleSize).data;
-          let bestH = 0;
-          let bestS = 0;
-          let bestL = 0;
-          let maxScore = -1;
-
-          // Histogram for dominant hues
-          const hueCounts = new Array(36).fill(0);
-          const hueSats = new Array(36).fill(0);
-          const hueLights = new Array(36).fill(0);
-
-          for (let i = 0; i < imgData.length; i += 16) {
-            const r = imgData[i];
-            const g = imgData[i + 1];
-            const b = imgData[i + 2];
-            const a = imgData[i + 3];
-
-            if (a < 128) continue;
-
-            const [h, s, l] = rgbToHsl(r, g, b);
-
-            // Filter out pure grays, deep blacks, and harsh blown whites
-            if (s > 15 && l > 12 && l < 88) {
-              const bucket = Math.floor(h / 10) % 36;
-              hueCounts[bucket]++;
-              hueSats[bucket] += s;
-              hueLights[bucket] += l;
-
-              // Score vibrant colorful pixels (Spotify accent logic)
-              const vibrancyScore = s * 1.5 + (50 - Math.abs(50 - l));
-              if (vibrancyScore > maxScore) {
-                maxScore = vibrancyScore;
-                bestH = h;
-                bestS = s;
-                bestL = l;
-              }
-            }
-          }
-
-          // If no vibrant pixel, take dominant hue bucket
-          if (maxScore < 0) {
-            let maxBucket = 0;
-            let maxBucketCount = 0;
-            for (let b = 0; b < 36; b++) {
-              if (hueCounts[b] > maxBucketCount) {
-                maxBucketCount = hueCounts[b];
-                maxBucket = b;
-              }
-            }
-            if (maxBucketCount > 0) {
-              bestH = maxBucket * 10 + 5;
-              bestS = Math.round(hueSats[maxBucket] / maxBucketCount);
-              bestL = Math.round(hueLights[maxBucket] / maxBucketCount);
-            } else {
-              colorCache.set(coverUrl, fallback);
-              return resolve(fallback);
-            }
-          }
-
-          // Ensure rich saturation and contrast
-          const finalS = Math.max(50, Math.min(95, bestS));
-          const finalH = bestH;
-
-          // Generate true Spotify-grade palette
-          const extractedTheme: SongColorTheme = {
-            primary: `hsla(${finalH}, ${finalS}%, 50%, 0.5)`,
-            secondary: `hsla(${(finalH + 30) % 360}, ${Math.max(40, finalS - 15)}%, 35%, 0.3)`,
-            darkBg: `hsl(${finalH}, ${Math.min(50, Math.max(25, finalS))}%, 6%)`,
-            accentHex: `hsl(${finalH}, ${finalS}%, 60%)`,
-          };
-
-          colorCache.set(coverUrl, extractedTheme);
-          resolve(extractedTheme);
-        } catch (err) {
-          console.warn('Canvas pixel extraction failed (CORS/taint), using fallback:', err);
-          colorCache.set(coverUrl, fallback);
-          resolve(fallback);
+        } catch {
+          // Canvas tainted or extraction error, try server API
         }
+
+        const serverTheme = await extractViaServerApi(coverUrl);
+        finalize(serverTheme || fallback);
       };
 
-      img.onerror = () => {
+      img.onload = handleImageReady;
+
+      img.onerror = async () => {
         clearTimeout(timer);
-        colorCache.set(coverUrl, fallback);
-        resolve(fallback);
+        const serverTheme = await extractViaServerApi(coverUrl);
+        finalize(serverTheme || fallback);
       };
+
+      // Set src AFTER event handlers are attached
+      img.src = coverUrl;
+
+      // Handle already cached image
+      if (img.complete && img.naturalWidth > 0) {
+        handleImageReady();
+      }
     } catch {
-      colorCache.set(coverUrl, fallback);
-      resolve(fallback);
+      clearTimeout(timer);
+      extractViaServerApi(coverUrl).then((st) => finalize(st || fallback));
     }
   });
 }
+

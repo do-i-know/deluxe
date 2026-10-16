@@ -9,49 +9,34 @@ export function cn(...inputs: (string | undefined | null | false)[]) {
 }
 
 /**
- * Aceternity Spotlight: Creates a soft glowing beam of light from the top
+ * Aceternity Spotlight: Ultra-smooth, hardware-accelerated light beam
+ * Replaces heavy 3787px SVG Gaussian blur filters with pure GPU-composited radial lighting
  */
 export const Spotlight: React.FC<{
   className?: string;
   fill?: string;
 }> = ({ className, fill = '#f59e0b' }) => {
   return (
-    <svg
+    <div
       className={cn(
-        'animate-spotlight pointer-events-none absolute z-[1] h-[169%] w-[138%] lg:w-[84%] opacity-0',
+        'animate-spotlight pointer-events-none absolute z-[1] w-[650px] h-[650px] sm:w-[950px] sm:h-[950px] opacity-0 select-none will-change-transform',
         className
       )}
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 3787 2842"
-      fill="none"
+      style={{
+        transform: 'translate3d(0, 0, 0)',
+        contain: 'paint layout',
+      }}
     >
-      <g filter="url(#filter)">
-        <ellipse
-          cx="1924.71"
-          cy="273.501"
-          rx="1924.71"
-          ry="273.501"
-          transform="matrix(-0.822377 -0.568943 -0.568943 0.822377 3631.88 2291.09)"
-          fill={fill}
-          fillOpacity="0.21"
-        ></ellipse>
-      </g>
-      <defs>
-        <filter
-          id="filter"
-          x="0.860352"
-          y="0.838989"
-          width="3785.16"
-          height="2840.26"
-          filterUnits="userSpaceOnUse"
-          colorInterpolationFilters="sRGB"
-        >
-          <feFlood floodOpacity="0" result="BackgroundImageFix"></feFlood>
-          <feBlend mode="normal" in="SourceGraphic" in2="BackgroundImageFix" result="shape"></feBlend>
-          <feGaussianBlur stdDeviation="151" result="effect1_foregroundBlur_1065_8"></feGaussianBlur>
-        </filter>
-      </defs>
-    </svg>
+      {/* Primary Focused Light Beam */}
+      <div
+        className="w-full h-full rounded-full"
+        style={{
+          background: `radial-gradient(ellipse 70% 55% at 50% 30%, ${fill}38 0%, ${fill}18 35%, ${fill}06 60%, transparent 80%)`,
+          filter: 'blur(35px)',
+          transform: 'rotate(-25deg) translateZ(0)',
+        }}
+      />
+    </div>
   );
 };
 
@@ -142,13 +127,43 @@ export const ShimmerButton: React.FC<
 
 /**
  * Aceternity Background Beams: Floating cosmic ambient dust for retro lounge atmosphere
+ * Layer-isolated and optimized with CSS containment to prevent scroll repaints
  */
-export const AmbientBeams: React.FC = () => {
+export const AmbientBeams: React.FC<{ accentColor?: string }> = ({ accentColor }) => {
+  const baseColor = accentColor || 'rgba(217, 119, 6, 0.25)';
   return (
-    <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden opacity-30">
-      <div className="absolute -top-40 -left-40 h-96 w-96 rounded-full bg-amber-600/20 blur-[120px]" />
-      <div className="absolute top-1/3 -right-40 h-[30rem] w-[30rem] rounded-full bg-orange-700/15 blur-[140px]" />
-      <div className="absolute -bottom-40 left-1/3 h-96 w-96 rounded-full bg-yellow-600/15 blur-[120px]" />
+    <div
+      className="pointer-events-none fixed inset-0 z-0 overflow-hidden opacity-25 select-none transition-colors duration-1000"
+      style={{
+        contain: 'strict',
+        transform: 'translate3d(0, 0, 0)',
+      }}
+    >
+      <div
+        className="absolute -top-32 -left-32 h-96 w-96 rounded-full transition-all duration-1000"
+        style={{
+          background: `radial-gradient(circle, ${baseColor} 0%, transparent 70%)`,
+          filter: 'blur(45px)',
+          transform: 'translateZ(0)',
+        }}
+      />
+      <div
+        className="absolute top-1/3 -right-32 h-[28rem] w-[28rem] rounded-full transition-all duration-1000"
+        style={{
+          background: `radial-gradient(circle, ${baseColor} 0%, transparent 70%)`,
+          filter: 'blur(50px)',
+          transform: 'translateZ(0)',
+        }}
+      />
+      <div
+        className="absolute -bottom-32 left-1/3 h-96 w-96 rounded-full transition-all duration-1000"
+        style={{
+          background: `radial-gradient(circle, ${baseColor} 0%, transparent 70%)`,
+          filter: 'blur(45px)',
+          transform: 'translateZ(0)',
+        }}
+      />
     </div>
   );
 };
+
